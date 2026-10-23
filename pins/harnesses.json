@@ -20,10 +20,10 @@
     }
   },
   "siblings": {
-    "note": "Refs of the repos that make up 'our setup'. CI checks them out at these refs; the nightly workflow also tries their default branches. Fill in a commit SHA once each repo is published; until then CI falls back to the checked-in fixtures.",
-    "dotfiles": { "repo": "tyler-jewell/dotfiles", "ref": "main" },
-    "agents": { "repo": "tyler-jewell/agents", "ref": "main" },
-    "lsp-doctor": { "repo": "tyler-jewell/lsp-doctor", "ref": "main" },
-    "harness-inventory": { "repo": "tyler-jewell/harness-inventory", "ref": "main" }
+    "note": "Refs of the repos that make up 'our setup'. CI checks them out at these commits. The nightly workflow also tries their default branches.",
+    "dotfiles": { "repo": "tyler-jewell/dotfiles", "ref": "821a07889506971c38f27b3414812f2cf2f1a8f7" },
+    "agents": { "repo": "tyler-jewell/agents", "ref": "212f7da743908eed7600b8fc1e105b971b7452f4" },
+    "lsp-doctor": { "repo": "tyler-jewell/lsp-doctor", "ref": "84a2e4954a48da96b9d1323ebc6b16c4f0d7e9aa" },
+    "harness-inventory": { "repo": "tyler-jewell/harness-inventory", "ref": "1e76a90c6dc01dc4494a3ce4aa096db5d39aa0e2" }
   }
 }

@@ -50,7 +50,7 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           package-manager-cache: false
-      - run: node --test tests/
+      - run: node --test tests/*.test.mjs
 
   lint:
     runs-on: ubuntu-latest

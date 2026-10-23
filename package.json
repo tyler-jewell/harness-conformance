@@ -1,0 +1,13 @@
+{
+  "name": "harness-conformance",
+  "version": "0.1.0",
+  "description": "Prove that Claude Code, OpenCode, Grok Build and friends behave the same with your agent setup, using a deterministic local mock model (no keys, no network).",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": { "harness-conformance": "bin/harness-conformance" },
+  "engines": { "node": ">=22" },
+  "files": ["bin", "src", "fixtures", "pins", "docs", "templates", "README.md", "LICENSE"],
+  "scripts": { "test": "node --test tests/", "check": "node --test tests/ && node bin/harness-conformance list" },
+  "repository": { "type": "git", "url": "git+https://github.com/tyler-jewell/harness-conformance.git" },
+  "keywords": ["claude-code", "opencode", "grok", "codex", "conformance", "mock-llm", "agents"]
+}

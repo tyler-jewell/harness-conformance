@@ -1,0 +1,63 @@
+name: checkout setup siblings
+description: Check out the public repos that make up the setup under test (dotfiles, agents, lsp-doctor, harness-inventory) at the refs pinned in pins/harnesses.json. The caller repo is used as-is for its own role. A missing sibling is not an error: conformance falls back to its checked-in fixtures for that part.
+inputs:
+  caller:
+    description: Name of the repository that triggered the run (its own checkout is placed in siblings/<name>)
+    default: ''
+runs:
+  using: composite
+  steps:
+    - name: Resolve pinned refs
+      id: refs
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+      run: |
+        node -e '
+          const s = require(process.env.ACTION_PATH + "/../../../pins/harnesses.json").siblings;
+          const out = [];
+          for (const [k, v] of Object.entries(s)) if (v && v.repo) out.push(`${k.replace(/-/g, "_")}_ref=${v.ref}`);
+          console.log(out.join("\n"));
+        ' >>"$GITHUB_OUTPUT"
+    - name: dotfiles
+      if: inputs.caller != 'dotfiles'
+      continue-on-error: true
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        repository: tyler-jewell/dotfiles
+        ref: ${{ steps.refs.outputs.dotfiles_ref }}
+        path: siblings/dotfiles
+        persist-credentials: false
+    - name: agents
+      if: inputs.caller != 'agents'
+      continue-on-error: true
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        repository: tyler-jewell/agents
+        ref: ${{ steps.refs.outputs.agents_ref }}
+        path: siblings/agents
+        persist-credentials: false
+    - name: lsp-doctor
+      if: inputs.caller != 'lsp-doctor'
+      continue-on-error: true
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        repository: tyler-jewell/lsp-doctor
+        ref: ${{ steps.refs.outputs.lsp_doctor_ref }}
+        path: siblings/lsp-doctor
+        persist-credentials: false
+    - name: harness-inventory
+      if: inputs.caller != 'harness-inventory'
+      continue-on-error: true
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        repository: tyler-jewell/harness-inventory
+        ref: ${{ steps.refs.outputs.harness_inventory_ref }}
+        path: siblings/harness-inventory
+        persist-credentials: false
+    - name: caller repo under test
+      if: inputs.caller == 'dotfiles' || inputs.caller == 'agents' || inputs.caller == 'lsp-doctor' || inputs.caller == 'harness-inventory'
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        path: siblings/${{ inputs.caller }}
+        persist-credentials: false

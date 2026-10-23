@@ -1,0 +1,155 @@
+# Lockstep conformance: the same scenarios against every harness, on Linux and macOS, with a local mock model.
+# No secrets are used anywhere: the harnesses talk to a mock server on localhost with dummy credentials.
+# Fork PRs run on GitHub-hosted runners only (the Studio legs are gated on same-repo trusted events).
+#
+# Reusable: other repos (dotfiles, agents, lsp-doctor, shared-config) call this with workflow_call; see templates/.
+name: conformance
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      conformance-repo:
+        description: Repository holding harness-conformance
+        type: string
+        default: tyler-jewell/harness-conformance
+      conformance-ref:
+        description: Ref of harness-conformance to run (pin a commit SHA in callers)
+        type: string
+        default: main
+      harnesses:
+        description: Comma list of harnesses that must conform
+        type: string
+        default: claude,opencode,grok
+      mode:
+        description: Runner mode for the Studio legs (hosted | studio | auto); empty uses vars.RUNNER_MODE
+        type: string
+        default: ''
+permissions:
+  contents: read
+concurrency:
+  group: conformance-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  HC_REPO: ${{ inputs.conformance-repo || github.repository }}
+  HC_REF: ${{ inputs.conformance-ref || github.sha }}
+  HC_HARNESSES: ${{ inputs.harnesses || 'claude,opencode,grok' }}
+jobs:
+  pick:
+    uses: tyler-jewell/shared-config/.github/workflows/select-runner.yml@v1
+    permissions:
+      contents: read
+    with:
+      mode: ${{ inputs.mode || vars.RUNNER_MODE }}
+
+  conformance:
+    name: conformance (${{ matrix.leg }})
+    needs: pick
+    runs-on: ${{ fromJSON(matrix.runs-on) }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { leg: linux-x64, runs-on: '"ubuntu-latest"' }
+          - { leg: linux-arm64, runs-on: '"ubuntu-24.04-arm"' }
+          - { leg: macos-arm64, runs-on: '"macos-latest"' }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ env.HC_REPO }}
+          ref: ${{ env.HC_REF }}
+          path: conformance
+          persist-credentials: false
+      - uses: ./conformance/.github/actions/siblings
+        with:
+          caller: ${{ github.event.repository.name }}
+      - uses: ./conformance/.github/actions/run
+        with:
+          harnesses: ${{ env.HC_HARNESSES }}
+          leg: ${{ matrix.leg }}
+          siblings-dir: ${{ github.workspace }}/siblings
+
+  # Same job on the self-hosted Studio (macOS arm64 and its Linux VM) when the picker chose it for this
+  # trusted event. Never for fork PRs (the picker also refuses them; this is the second lock).
+  studio:
+    name: conformance (studio-${{ matrix.runner }})
+    needs: pick
+    if: needs.pick.outputs.selfhosted == 'true' && github.event.pull_request.head.repo.fork != true
+    runs-on: ${{ fromJSON(matrix.runner == 'macos' && needs.pick.outputs.macos || needs.pick.outputs.linux) }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos, linux]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ env.HC_REPO }}
+          ref: ${{ env.HC_REF }}
+          path: conformance
+          persist-credentials: false
+      - uses: ./conformance/.github/actions/siblings
+        with:
+          caller: ${{ github.event.repository.name }}
+      - uses: ./conformance/.github/actions/run
+        with:
+          harnesses: ${{ env.HC_HARNESSES }}
+          leg: studio-${{ matrix.runner }}
+          siblings-dir: ${{ github.workspace }}/siblings
+
+  report:
+    name: merged matrix
+    needs: [conformance, studio]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ env.HC_REPO }}
+          ref: ${{ env.HC_REF }}
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: matrix-*
+          path: matrices
+          merge-multiple: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Merge and publish the matrix
+        run: |
+          shopt -s nullglob
+          files=(matrices/*/matrix-*.json)
+          [ ${#files[@]} -gt 0 ] || { echo "::error::no matrix artifacts were produced"; exit 1; }
+          node bin/harness-conformance matrix "${files[@]}" --format json >merged.json || true
+          node bin/harness-conformance matrix "${files[@]}" | tee merged.md >>"$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: matrix-merged
+          path: |
+            merged.json
+            merged.md
+
+  # Plain gate job so the required status check context is exactly `conformance-gate`.
+  conformance-gate:
+    if: always()
+    needs: [conformance, studio, report]
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for r in $RESULTS; do [ "$r" = success ] || [ "$r" = skipped ] || { echo "failed: $RESULTS"; exit 1; }; done

@@ -1,0 +1,90 @@
+name: ci
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  title-lint:
+    if: github.event_name == 'pull_request'
+    uses: tyler-jewell/shared-config/.github/workflows/pr-title.yml@v1
+  branch-name:
+    if: github.event_name == 'pull_request'
+    uses: tyler-jewell/shared-config/.github/workflows/branch-name.yml@v1
+  dco:
+    if: github.event_name == 'pull_request'
+    uses: tyler-jewell/shared-config/.github/workflows/dco.yml@v1
+    permissions:
+      contents: read
+  secrets-scan:
+    uses: tyler-jewell/shared-config/.github/workflows/secrets-scan.yml@v1
+    permissions:
+      contents: read
+  wrangler-warning:
+    uses: tyler-jewell/shared-config/.github/workflows/wrangler-warning.yml@v1
+    permissions:
+      contents: read
+  agent-dx:
+    uses: tyler-jewell/shared-config/.github/workflows/agent-dx.yml@v1
+    permissions:
+      contents: read
+
+  # Unit tests use FAKE harness binaries: fast, offline, no harness install.
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]
+        node: ['22', '24']
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+          package-manager-cache: false
+      - run: node --test tests/
+
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: actionlint (official release, sha256-verified)
+        run: |
+          bin=$(bash scripts/install-actionlint.sh)
+          "$bin" -color
+      - name: shellcheck
+        run: shellcheck scripts/*.sh fixtures/home/hooks/hook.sh
+
+  # Gate jobs: plain jobs so the required status contexts are exactly `ci` and `pr-title`.
+  pr-title:
+    if: always()
+    needs: [title-lint]
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - env:
+          R: ${{ needs.title-lint.result }}
+        run: '[ "$R" = success ] || [ "$R" = skipped ]'
+  ci:
+    if: always()
+    needs: [branch-name, secrets-scan, dco, wrangler-warning, agent-dx, test, lint]
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for r in $RESULTS; do [ "$r" = success ] || [ "$r" = skipped ] || { echo "failed: $RESULTS"; exit 1; }; done

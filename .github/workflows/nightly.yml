@@ -1,0 +1,97 @@
+# Upstream drift detection: install the LATEST published harness versions and run the same scenarios.
+# A divergence opens (or updates) one issue; a green night closes it. Uses only the job's GITHUB_TOKEN.
+name: nightly
+on:
+  schedule:
+    - cron: '17 5 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+jobs:
+  latest:
+    name: latest (${{ matrix.leg }})
+    runs-on: ${{ matrix.runs-on }}
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { leg: linux-x64, runs-on: ubuntu-latest }
+          - { leg: linux-arm64, runs-on: ubuntu-24.04-arm }
+          - { leg: macos-arm64, runs-on: macos-latest }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: conformance
+          persist-credentials: false
+      - uses: ./conformance/.github/actions/siblings
+      - uses: ./conformance/.github/actions/run
+        continue-on-error: true
+        with:
+          channel: latest
+          leg: nightly-${{ matrix.leg }}
+          siblings-dir: ${{ github.workspace }}/siblings
+
+  drift:
+    name: drift report
+    needs: latest
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      LABEL: conformance-drift
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: matrix-nightly-*
+          path: matrices
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Build the report
+        id: report
+        run: |
+          shopt -s nullglob
+          files=(matrices/*/matrix-*.json)
+          if [ ${#files[@]} -eq 0 ]; then
+            printf '## Nightly produced no matrix\n\nEvery leg failed before writing a matrix (install failure?). See the workflow run: %s/%s/actions/runs/%s\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" >report.md
+            echo "diverged=true" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+          node bin/harness-conformance matrix "${files[@]}" >report.md && rc=0 || rc=$?
+          [ "$rc" = 0 ] && echo "diverged=false" >>"$GITHUB_OUTPUT" || echo "diverged=true" >>"$GITHUB_OUTPUT"
+          # Advisory: harnesses the runner detected that no pin lists (new harness on the machine image).
+          node -e '
+            const m = JSON.parse(require("fs").readFileSync(process.argv[1]));
+            const pinned = new Set(Object.keys(require("./pins/harnesses.json").npm).concat("grok"));
+            const extra = [...new Set(m.harnesses.map((h) => h.name))].filter((n) => !pinned.has(n));
+            if (extra.length) console.log("\n> Newly detected harness(es) not in pins/harnesses.json: " + extra.join(", ") + " (advisory)");
+          ' "${files[0]}" >>report.md
+          cat report.md >>"$GITHUB_STEP_SUMMARY"
+      - name: Open, update or close the drift issue
+        env:
+          DIVERGED: ${{ steps.report.outputs.diverged }}
+        run: |
+          gh label create "$LABEL" --color B60205 --description "Upstream harness behavior diverged" 2>/dev/null || true
+          existing=$(gh issue list --label "$LABEL" --state open --json number --jq '.[0].number // empty')
+          body=$(printf '%s\n\nRun: %s/%s/actions/runs/%s\n' "$(cat report.md)" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")
+          if [ "$DIVERGED" = true ]; then
+            if [ -n "$existing" ]; then gh issue comment "$existing" --body "$body"
+            else gh issue create --label "$LABEL" --title "Harness drift: nightly conformance diverged" --body "$body"; fi
+          elif [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "Nightly is green again. Closing."
+            gh issue close "$existing"
+          fi

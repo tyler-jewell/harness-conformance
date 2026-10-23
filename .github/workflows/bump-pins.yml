@@ -1,0 +1,43 @@
+# Dependabot-style bump for the pin that dependabot cannot see: Grok Build is a plain binary with per-platform
+# sha256 values in pins/harnesses.json. npm harnesses and GitHub Actions are bumped by dependabot (.github/dependabot.yml).
+# Opens one PR with GITHUB_TOKEN. (PRs created by GITHUB_TOKEN do not trigger workflows: close and reopen the PR to run CI.)
+name: bump-pins
+on:
+  schedule:
+    - cron: '41 6 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  grok:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Look for a newer Grok Build and record its checksums
+        id: bump
+        run: node scripts/bump-grok.mjs >>"$GITHUB_OUTPUT"
+      - name: Open the PR
+        if: steps.bump.outputs.changed == 'true'
+        env:
+          NEW: ${{ steps.bump.outputs.version }}
+        run: |
+          branch="chore/bump-grok-$NEW"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add pins/harnesses.json
+          git commit -s -m "chore(pins): bump grok to $NEW" -m "Checksums recorded from the artifacts the official installer downloads (https://x.ai/cli/install.sh)."
+          git push origin "$branch"
+          gh pr create --title "chore(pins): bump grok to $NEW" --body "Automated pin bump. Verify the conformance matrix on this PR before merging; a lockstep divergence means an expectation in src/expectations.mjs needs a deliberate change." --base "${GITHUB_REF_NAME}"

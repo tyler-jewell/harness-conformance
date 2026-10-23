@@ -1,0 +1,24 @@
+# Copy to .github/workflows/conformance.yml in dotfiles, agents, lsp-doctor, harness-inventory or shared-config.
+# Runs the lockstep conformance matrix (Claude Code, OpenCode, Grok Build on Linux x64/arm64 and macOS) with a local
+# mock model: no secrets, no API keys. The calling repo is checked out as its own role in the "setup under test"
+# (an agents PR tests the agents it changes), the other roles come from their public repos.
+#
+# Pin BOTH the `uses:` ref and `conformance-ref` to the same commit SHA of harness-conformance.
+# Make `conformance-gate` a required status check (or add it to the `needs:` of your `ci` gate job).
+name: conformance
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  conformance:
+    uses: tyler-jewell/harness-conformance/.github/workflows/conformance.yml@main # replace main with a commit SHA
+    permissions:
+      contents: read
+    with:
+      conformance-ref: main # same commit SHA as above
+      harnesses: claude,opencode,grok
+      mode: ${{ vars.RUNNER_MODE }} # hosted (default) | studio | auto, see shared-config docs/RUNNERS.md

@@ -1,0 +1,26 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "ci"
+  - package-ecosystem: github-actions
+    directory: /.github/actions/run
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "ci"
+  - package-ecosystem: npm
+    directory: /pins
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore(pins)"
+  - package-ecosystem: npm
+    directory: /pins/stretch
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore(pins)"

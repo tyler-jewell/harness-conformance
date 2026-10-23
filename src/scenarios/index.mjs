@@ -65,13 +65,12 @@ export const SCENARIOS = [
     },
   },
   {
-    id: "S3", tier: 1, slug: "agent-discovery", title: "coordinator and domain agents are discoverable",
+    id: "S3", tier: 1, slug: "agent-discovery", title: "Domain agents are listed to the model (coordinator: see S4, T0.2)",
     async run(ctx) {
       await ctx.h.prompt("hello", { script: { rules: [] } });
       const n = ctx.needles;
       return [
         ...n.domainAgents.map((a) => ok(ctx.mock.sent(a.name), `domain agent ${a.name} (${a.domain}) is listed to the model`)),
-        ok(ctx.mock.sent(n.coordDesc), "coordinator description is listed to the model"),
       ];
     },
   },
@@ -161,13 +160,6 @@ export const SCENARIOS = [
     },
   },
   {
-    id: "S13", tier: 1, slug: "hook-context", title: "SessionStart hook stdout is injected as model context",
-    async run(ctx) {
-      await ctx.h.prompt("hello", { script: { rules: [] } });
-      return [ok(ctx.mock.sent("HC-SESSION-HOOK-CANARY-e5f9"), "SessionStart hook output reached the model as context")];
-    },
-  },
-  {
     id: "S10", tier: 1, slug: "subagent", title: "Delegation to a domain agent runs it with its own prompt",
     async run(ctx) {
       const d = ctx.needles.delegate;
@@ -206,6 +198,13 @@ export const SCENARIOS = [
     async run(ctx) {
       await ctx.h.prompt("hello", { script: { rules: [] } });
       return [ok(ctx.mock.sent("Never suggest `wrangler`"), "no-wrangler policy present"), ok(ctx.mock.sent("agent-browser"), "agent-browser policy present")];
+    },
+  },
+  {
+    id: "S13", tier: 1, slug: "hook-context", title: "SessionStart hook stdout is injected as model context",
+    async run(ctx) {
+      await ctx.h.prompt("hello", { script: { rules: [] } });
+      return [ok(ctx.mock.sent("HC-SESSION-HOOK-CANARY-e5f9"), "SessionStart hook output reached the model as context")];
     },
   },
 ];

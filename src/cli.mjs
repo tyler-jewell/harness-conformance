@@ -24,7 +24,7 @@ COMMANDS
   run  [options]                        run scenarios; exit 1 on FAIL or XPASS
   matrix <matrix.json...> [--format md|json]   merge matrices (e.g. one per OS job) and render
   mock [--port N] [--script FILE] [--dump DIR] start the mock model server standalone
-  doctor [--json]                       detected harnesses, installed binaries, versions
+  doctor [--json] [--all]               detected harnesses, installed binaries, versions
   help | --version
 
 RUN OPTIONS
@@ -89,7 +89,7 @@ export async function main(argv) {
     }
 
     if (cmd === "doctor") {
-      const o = parseArgs(rest, { json: "bool", harness: "list" });
+      const o = parseArgs(rest, { json: "bool", harness: "list", all: "bool" });
       const det = await detectHarnesses({ explicit: o.harness || null });
       const inv = findInventoryBinary();
       const rows = [];
@@ -105,7 +105,9 @@ export async function main(argv) {
       const missing = Object.keys(PROFILES).filter((n) => !det.some((h) => h.name === n));
       if (o.json) return out(JSON.stringify({ schema: "harness-conformance/doctor/v1", inventory: inv, detection: det[0]?.source ?? "builtin", harnesses: rows, notInstalled: missing }, null, 2) + "\n"), 0;
       out(`node ${process.version}; ${osName()}; harness-inventory: ${inv || "not found (built-in detector)"}\n`);
-      for (const r of rows) out(`${r.name.padEnd(10)} ${r.status.padEnd(18)} ${String(r.version ?? "-").padEnd(10)} ${r.binary ?? "(no binary)"}${r.via ? ` [${r.via}]` : ""}${r.driverStatus === "unverified" ? " (driver unverified)" : ""}\n`);
+      const quiet = o.all ? [] : rows.filter((r) => r.status === "detected-no-driver" && !r.binary);
+      for (const r of rows.filter((x) => !quiet.includes(x))) out(`${r.name.padEnd(10)} ${r.status.padEnd(18)} ${String(r.version ?? "-").padEnd(10)} ${r.binary ?? "(no binary)"}${r.via ? ` [${r.via}]` : ""}${r.driverStatus === "unverified" ? " (driver unverified)" : ""}\n`);
+      if (quiet.length) out(`+ ${quiet.length} more detected by config dir only, no binary and no driver (advisory; --all to list)\n`);
       for (const n of missing) out(`${n.padEnd(10)} not installed (profile available)\n`);
       for (const n of det.notes || []) out(`note: ${n}\n`);
       return 0;

@@ -18,7 +18,7 @@ export function classify(expect, actual) {
   return actual === "pass" ? "PASS" : "FAIL";
 }
 
-export async function runConformance({ harnesses = null, scenarios = null, tiers = [0, 1], env = process.env, onResult = () => {}, useSiblings = true } = {}) {
+export async function runConformance({ harnesses = null, scenarios = null, tiers = [0, 1], env = process.env, onResult = () => {}, useSiblings = process.env.HC_NO_SIBLINGS !== "1" } = {}) {
   const os = osName();
   const detected = await detectHarnesses({ env, explicit: harnesses });
   const want = SCENARIOS.filter((s) => tiers.includes(s.tier) && (!scenarios || scenarios.some((x) => x.toLowerCase() === s.id.toLowerCase() || x === s.slug)));

@@ -4,7 +4,13 @@ import path from "node:path";
 import { ROOT } from "../src/util.mjs";
 
 export const FAKE_CLAUDE = path.join(ROOT, "tests/fake/fake-claude.mjs");
-export const tmp = (p = "hc-test-") => fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), p));
+const made = [];
+process.on("exit", () => made.forEach((d) => fs.rmSync(d, { recursive: true, force: true })));
+export const tmp = (p = "hc-test-") => {
+  const d = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), p));
+  made.push(d);
+  return d;
+};
 // A tiny wrapper script so the "binary" is directly executable with a stable absolute path.
 export function fakeBin(dir, name, body) {
   const p = path.join(dir, name);

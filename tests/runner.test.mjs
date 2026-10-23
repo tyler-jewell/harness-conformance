@@ -70,12 +70,16 @@ test("matrix: JSON schema, merge across OS jobs, Markdown summary", async () => 
   const r = await runConformance({ env, harnesses: ["claude"], scenarios: ["T0.1", "S1"], useSiblings: false });
   const a = buildMatrix(r);
   assert.equal(a.schema, "harness-conformance/matrix/v1");
+  // Pin both sides. On a Linux runner `a` is already linux, and the merge
+  // would collapse to one column.
+  for (const x of a.results) x.os = "darwin";
+  for (const x of a.harnesses) x.os = "darwin";
   const b = JSON.parse(JSON.stringify(a));
   for (const x of b.results) x.os = "linux";
   for (const x of b.harnesses) x.os = "linux";
   const merged = mergeMatrices([a, b]);
   assert.equal(merged.results.length, 4);
   const md = renderMarkdown(merged);
-  assert.match(md, /\| Scenario \| claude 9\.9\.9 \(\w+\) \| claude 9\.9\.9 \(linux\) \|/);
+  assert.match(md, /\| Scenario \| claude 9\.9\.9 \(darwin\) \| claude 9\.9\.9 \(linux\) \|/);
   assert.match(md, /lockstep holds/);
 });

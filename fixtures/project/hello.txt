@@ -1,0 +1,1 @@
+HC-FILE-CANARY-hello from the project fixture

@@ -1,0 +1,11 @@
+{
+  "name": "harness-conformance-pins-stretch",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Stretch harnesses (Codex CLI, pi). Not installed on this author's machine; drivers are unverified until a CI run says otherwise.",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@openai/codex": "0.164.0",
+    "@earendil-works/pi-coding-agent": "1.4.0"
+  }
+}

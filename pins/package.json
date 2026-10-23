@@ -1,0 +1,11 @@
+{
+  "name": "harness-conformance-pins",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Pinned npm-distributed harness CLIs. The lockfile carries the sha512 integrity of every package, per platform.",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@anthropic-ai/claude-code": "2.1.309",
+    "@opencode/cli": "2.1.3"
+  }
+}

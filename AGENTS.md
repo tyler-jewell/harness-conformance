@@ -33,5 +33,5 @@ harness-conformance matrix linux.json macos.json > merged.md
 
 ## Working on this repo
 
-`node --test tests/` must pass (fake harness binaries, offline). Changing a scenario, expectation, flag or schema means updating
+`node --test tests/*.test.mjs` must pass (fake harness binaries, offline). Changing a scenario, expectation, flag or schema means updating
 `docs/CONTRACT.md` / `docs/SCHEMA.md` and this file. Conventional Commits; sign off (`git commit -s`). No personal data, no real keys.

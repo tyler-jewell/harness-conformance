@@ -1,5 +1,5 @@
 name: checkout setup siblings
-description: Check out the public repos that make up the setup under test (dotfiles, agents, lsp-doctor, harness-inventory) at the refs pinned in pins/harnesses.json. The caller repo is used as-is for its own role. A missing sibling is not an error: conformance falls back to its checked-in fixtures for that part.
+description: "Check out the public repos that make up the setup under test (dotfiles, agents, lsp-doctor, harness-inventory) at the refs pinned in pins/harnesses.json. The caller repo is used as-is for its own role. A missing sibling is not an error: conformance falls back to its checked-in fixtures for that part."
 inputs:
   caller:
     description: Name of the repository that triggered the run (its own checkout is placed in siblings/<name>)

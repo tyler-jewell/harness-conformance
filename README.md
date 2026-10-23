@@ -25,7 +25,7 @@ node bin/harness-conformance doctor          # which harnesses were detected, ve
 node bin/harness-conformance list            # the lockstep contract: scenarios x harnesses (PASS/XFAIL/SKIP)
 node bin/harness-conformance run             # tier 0 + tier 1 on every detected harness (about a minute)
 node bin/harness-conformance run --harness grok --scenario S6 --json   # one cell, machine-readable
-node --test tests/                           # unit tests with FAKE harness binaries (offline, ~10 s)
+node --test tests/*.test.mjs                # unit tests with FAKE harness binaries (offline, ~10 s)
 ```
 
 CI-style install of pinned harness versions into `./.harnesses` (never global, checksum-verified):

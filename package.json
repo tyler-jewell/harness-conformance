@@ -7,7 +7,7 @@
   "bin": { "harness-conformance": "bin/harness-conformance" },
   "engines": { "node": ">=22" },
   "files": ["bin", "src", "fixtures", "pins", "docs", "templates", "README.md", "LICENSE"],
-  "scripts": { "test": "node --test tests/", "check": "node --test tests/ && node bin/harness-conformance list" },
+  "scripts": { "test": "node --test tests/*.test.mjs", "check": "node --test tests/*.test.mjs && node bin/harness-conformance list" },
   "repository": { "type": "git", "url": "git+https://github.com/tyler-jewell/harness-conformance.git" },
   "keywords": ["claude-code", "opencode", "grok", "codex", "conformance", "mock-llm", "agents"]
 }
